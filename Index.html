@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrbitAlign | Satellite Positioner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --bg: #0f172a;
+        }
+        body {
+            background-color: var(--bg);
+            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 pb-20">
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-8 text-center">
+            <h1 class="text-4xl font-extrabold tracking-tight text-white mb-2">OrbitAlign</h1>
+            <p class="text-slate-400 italic">Precision tools for the final frontier</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Left Column: Inputs -->
+            <div class="space-y-6">
+                <!-- Location Card -->
+                <section class="card p-6 rounded-2xl shadow-xl">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-semibold flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Your Position
+                        </h2>
+                        <button id="geoBtn" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-full transition-all flex items-center gap-1 active:scale-95">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            GPS
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Latitude</label>
+                            <input type="number" id="userLat" step="any" value="37.7749" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Longitude</label>
+                            <input type="number" id="userLon" step="any" value="-122.4194" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Satellite Search Card -->
+                <section class="card p-6 rounded-2xl shadow-xl">
+                    <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        Satellite Target
+                    </h2>
+
+                    <div class="relative mb-4">
+                        <input type="text" id="satSearch" placeholder="Search satellites (e.g. Viasat, Astra...)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-amber-500 outline-none pr-10">
+                        <div class="absolute right-3 top-3 text-slate-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                        
+                        <!-- Dropdown -->
+                        <div id="satDropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto custom-scrollbar">
+                            <!-- Items populated by JS -->
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Orbital Position (Longitude)</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="satLon" step="any" value="-95.0" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-amber-500 outline-none">
+                            <span class="bg-slate-800 border border-slate-700 rounded-lg px-3 flex items-center text-slate-400 text-sm">°</span>
+                        </div>
+                    </div>
+                </section>
+                
+                <button id="calculateBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-blue-900/40 transform active:scale-[0.98]">
+                    Calculate Positioning
+                </button>
+            </div>
+
+            <!-- Right Column: Results & Visualization -->
+            <div class="space-y-6">
+                <!-- Values Card -->
+                <div class="card p-6 rounded-2xl shadow-xl">
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="text-center">
+                            <span class="block text-[10px] uppercase tracking-wider text-slate-500 font-black mb-1">Azimuth</span>
+                            <span id="azimuthVal" class="text-xl font-mono text-blue-400">--°</span>
+                        </div>
+                        <div class="text-center">
+                            <span class="block text-[10px] uppercase tracking-wider text-slate-500 font-black mb-1">Elevation</span>
+                            <span id="elevationVal" class="text-xl font-mono text-green-400">--°</span>
+                        </div>
+                        <div class="text-center">
+                            <span class="block text-[10px] uppercase tracking-wider text-slate-500 font-black mb-1">Skew</span>
+                            <span id="skewVal" class="text-xl font-mono text-amber-400">--°</span>
+                        </div>
+                    </div>
+                    
+                    <div id="horizonWarning" class="hidden mt-4 p-3 bg-red-900/30 border border-red-500/50 rounded-lg text-red-200 text-xs text-center">
+                        ⚠️ Satellite is below your horizon.
+                    </div>
+                </div>
+
+                <!-- Visualizers -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="card p-6 rounded-2xl flex flex-col items-center">
+                        <span class="text-[10px] font-black text-slate-500 uppercase mb-4">Compass View</span>
+                        <div class="relative w-32 h-32">
+                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="48" fill="none" stroke="#1e293b" stroke-width="4" />
+                                <circle cx="50" cy="50" r="45" fill="none" stroke="#334155" stroke-width="1" stroke-dasharray="2 2" />
+                                <text x="50" y="12" text-anchor="middle" font-size="8" font-weight="bold" fill="#64748b" transform="rotate(90, 50, 50)">N</text>
+                                <text x="88" y="53" text-anchor="middle" font-size="8" font-weight="bold" fill="#64748b" transform="rotate(90, 50, 50)">E</text>
+                                <text x="50" y="94" text-anchor="middle" font-size="8" font-weight="bold" fill="#64748b" transform="rotate(90, 50, 50)">S</text>
+                                <text x="12" y="53" text-anchor="middle" font-size="8" font-weight="bold" fill="#64748b" transform="rotate(90, 50, 50)">W</text>
+                            </svg>
+                            <div id="compassNeedle" class="absolute inset-0 flex items-center justify-center transition-transform duration-1000 ease-out" style="transform: rotate(0deg);">
+                                <div class="w-1.5 h-16 bg-gradient-to-t from-transparent via-blue-500 to-blue-400 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card p-6 rounded-2xl flex flex-col items-center">
+                        <span class="text-[10px] font-black text-slate-500 uppercase mb-4">Elevation View</span>
+                        <div class="relative w-32 h-32 flex items-end justify-center bg-slate-900/30 rounded-full border border-slate-800 overflow-hidden">
+                            <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 10px 10px;"></div>
+                            <div class="absolute bottom-0 w-full h-0.5 bg-slate-700"></div>
+                            <div id="elevationNeedle" class="absolute bottom-0 left-1/2 w-32 h-1.5 bg-green-500 origin-left transition-transform duration-1000 ease-out" style="transform: translateX(0) rotate(0deg);">
+                                <div class="absolute -right-2 -top-4 w-6 h-10 bg-green-400/80 rounded border border-green-300"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="mt-8 text-slate-500 text-[11px] card p-4 rounded-xl leading-relaxed">
+            <p><strong>Note:</strong> Azimuth is True North. If using a magnetic compass, adjust for local magnetic declination. Positive Skew is clockwise rotation of the LNB when facing the dish from behind.</p>
+        </footer>
+    </div>
+
+    <!-- Feedback Toast -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 opacity-0 pointer-events-none transition-all duration-300 translate-y-4 z-[100]">
+        <div class="bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl border border-slate-700 flex items-center gap-3">
+            <span id="toastIcon"></span>
+            <span id="toastMsg"></span>
+        </div>
+    </div>
+
+    <script>
+        // Satellite Database
+        const satellites = [
+            { name: "Viasat 1", lon: -91.1 },
+            { name: "Viasat 2", lon: -69.9 },
+            { name: "Viasat 3 (Americas)", lon: -88.9 },
+            { name: "HughesNet Jupiter 1 (EchoStar XVII)", lon: -107.1 },
+            { name: "HughesNet Jupiter 2 (EchoStar XIX)", lon: -109.2 },
+            { name: "HughesNet Jupiter 3 (EchoStar XXIV)", lon: -95.2 },
+            { name: "Astra 19.2E (Sky DE/FR)", lon: 19.2 },
+            { name: "Astra 28.2E (Sky UK/IE)", lon: 28.2 },
+            { name: "Eutelsat Hot Bird 13E", lon: 13.0 },
+            { name: "Eutelsat 9B", lon: 9.0 },
+            { name: "Galaxy 19 (97W)", lon: -97.0 },
+            { name: "Amazonas 2", lon: -61.0 },
+            { name: "Anik F2", lon: -111.1 },
+            { name: "Thor 5/6", lon: 0.8 },
+            { name: "Arabsat 5C", lon: 20.0 },
+            { name: "Nilesat 201", lon: 7.0 },
+            { name: "ABS-2", lon: 75.0 },
+            { name: "Intelsat 20", lon: 68.5 },
+            { name: "Optus D2", lon: 152.0 },
+            { name: "SES-1", lon: -101.0 }
+        ].sort((a, b) => a.name.localeCompare(b.name));
+
+        // Elements
+        const calculateBtn = document.getElementById('calculateBtn');
+        const geoBtn = document.getElementById('geoBtn');
+        const userLatEl = document.getElementById('userLat');
+        const userLonEl = document.getElementById('userLon');
+        const satLonEl = document.getElementById('satLon');
+        const satSearch = document.getElementById('satSearch');
+        const satDropdown = document.getElementById('satDropdown');
+
+        const azDisplay = document.getElementById('azimuthVal');
+        const elDisplay = document.getElementById('elevationVal');
+        const skewDisplay = document.getElementById('skewVal');
+        const compassNeedle = document.getElementById('compassNeedle');
+        const elevationNeedle = document.getElementById('elevationNeedle');
+        const horizonWarning = document.getElementById('horizonWarning');
+
+        // Helpers
+        function toRad(deg) { return deg * (Math.PI / 180); }
+        function toDeg(rad) { return rad * (180 / Math.PI); }
+
+        // Core Calculation
+        function calculateAlignment() {
+            const lat = parseFloat(userLatEl.value);
+            const lon = parseFloat(userLonEl.value);
+            const satLon = parseFloat(satLonEl.value);
+
+            if (isNaN(lat) || isNaN(lon) || isNaN(satLon)) return;
+
+            const L = toRad(lat);
+            const deltaG = toRad(lon - satLon);
+            
+            // Azimuth calculation
+            let azimuth;
+            const topAz = Math.tan(deltaG);
+            const bottomAz = Math.sin(L);
+            
+            if (lat >= 0) { // Northern Hemisphere
+                azimuth = (toDeg(Math.atan(topAz / bottomAz)) + 180) % 360;
+            } else { // Southern Hemisphere
+                azimuth = (toDeg(Math.atan(topAz / bottomAz)) + 360) % 360;
+            }
+
+            // Elevation calculation
+            const R_earth = 6378.14; 
+            const R_sat = 42164.0;
+            const r = R_earth / R_sat; 
+            const cosL = Math.cos(L);
+            const cosDeltaG = Math.cos(deltaG);
+            const numEl = cosDeltaG * cosL - r;
+            const denEl = Math.sqrt(1 - Math.pow(cosDeltaG * cosL, 2));
+            const elevation = toDeg(Math.atan(numEl / denEl));
+
+            // Skew calculation
+            const skew = toDeg(Math.atan(Math.sin(deltaG) / Math.tan(L)));
+
+            // Update UI
+            azDisplay.textContent = azimuth.toFixed(1) + '°';
+            elDisplay.textContent = elevation.toFixed(1) + '°';
+            skewDisplay.textContent = isFinite(skew) ? skew.toFixed(1) + '°' : '0.0°';
+
+            compassNeedle.style.transform = `rotate(${azimuth}deg)`;
+            elevationNeedle.style.transform = `rotate(${-elevation}deg)`;
+
+            if (elevation < 0) {
+                horizonWarning.classList.remove('hidden');
+            } else {
+                horizonWarning.classList.add('hidden');
+            }
+        }
+
+        // Search & Dropdown Logic
+        function renderDropdown(filter = "") {
+            const filtered = satellites.filter(s => 
+                s.name.toLowerCase().includes(filter.toLowerCase())
+            );
+            
+            satDropdown.innerHTML = '';
+            if (filtered.length === 0) {
+                satDropdown.innerHTML = '<div class="p-4 text-slate-500 text-sm">No satellites found</div>';
+            } else {
+                filtered.forEach(sat => {
+                    const div = document.createElement('div');
+                    div.className = 'p-3 hover:bg-slate-700 cursor-pointer border-b border-slate-700/50 flex justify-between items-center group transition-colors';
+                    div.innerHTML = `
+                        <span class="text-white font-medium group-hover:text-amber-400">${sat.name}</span>
+                        <span class="text-xs text-slate-500 font-mono">${sat.lon}°</span>
+                    `;
+                    div.onclick = () => {
+                        satLonEl.value = sat.lon;
+                        satSearch.value = sat.name;
+                        satDropdown.classList.add('hidden');
+                        calculateAlignment();
+                    };
+                    satDropdown.appendChild(div);
+                });
+            }
+        }
+
+        satSearch.onfocus = () => {
+            renderDropdown(satSearch.value);
+            satDropdown.classList.remove('hidden');
+        };
+
+        satSearch.oninput = (e) => {
+            renderDropdown(e.target.value);
+        };
+
+        document.addEventListener('click', (e) => {
+            if (!satSearch.contains(e.target) && !satDropdown.contains(e.target)) {
+                satDropdown.classList.add('hidden');
+            }
+        });
+
+        // GPS Location
+        function showToast(msg, icon = "ℹ️") {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            document.getElementById('toastIcon').innerText = icon;
+            toast.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
+            }, 3000);
+        }
+
+        geoBtn.onclick = () => {
+            if (!navigator.geolocation) {
+                showToast("GPS not supported", "❌");
+                return;
+            }
+            geoBtn.innerText = "...";
+            geoBtn.disabled = true;
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    userLatEl.value = pos.coords.latitude.toFixed(4);
+                    userLonEl.value = pos.coords.longitude.toFixed(4);
+                    geoBtn.innerText = "GPS";
+                    geoBtn.disabled = false;
+                    showToast("Location updated!", "✅");
+                    calculateAlignment();
+                },
+                (err) => {
+                    showToast("Location access denied", "⚠️");
+                    geoBtn.innerText = "GPS";
+                    geoBtn.disabled = false;
+                },
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            );
+        };
+
+        calculateBtn.onclick = calculateAlignment;
+
+        // Init
+        window.onload = calculateAlignment;
+    </script>
+</body>
+</html>
+
