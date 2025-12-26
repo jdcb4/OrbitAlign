@@ -136,8 +136,8 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                         </button>
                         
-                        <!-- Dropdown -->
-                        <div id="satDropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 max-h-72 overflow-y-auto custom-scrollbar">
+                        <!-- Dropdown - high z-index to appear above other elements -->
+                        <div id="satDropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-[100] max-h-72 overflow-y-auto custom-scrollbar">
                             <!-- Items populated by JS -->
                         </div>
                     </div>
@@ -152,10 +152,6 @@
                         <span class="text-[10px] text-slate-500 mt-1 block">Geostationary orbit longitude (-180° to 180°)</span>
                     </div>
                 </section>
-                
-                <button id="calculateBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-blue-900/40 transform active:scale-[0.98]">
-                    Calculate Positioning
-                </button>
             </div>
 
             <!-- Right Column: Results & Visualization -->
@@ -376,7 +372,6 @@
         // =====================================================
         // DOM ELEMENTS
         // =====================================================
-        const calculateBtn = document.getElementById('calculateBtn');
         const geoBtn = document.getElementById('geoBtn');
         const userLatEl = document.getElementById('userLat');
         const userLonEl = document.getElementById('userLon');
@@ -580,27 +575,26 @@
 
         /**
          * Main calculation function - calculates all alignment values and updates UI
+         * Calculations happen automatically as inputs change, so validation is silent
          */
         function calculateAlignment() {
             const lat = parseFloat(userLatEl.value);
             const lon = parseFloat(userLonEl.value);
             const satLon = parseFloat(satLonEl.value);
 
-            // Validate inputs
+            // Silently return if inputs are incomplete or invalid
+            // (user may still be typing)
             if (isNaN(lat) || isNaN(lon) || isNaN(satLon)) {
-                showToast("Please enter valid coordinates", "⚠️");
                 return;
             }
 
             // Validate latitude range
             if (lat < -90 || lat > 90) {
-                showToast("Latitude must be between -90 and 90", "⚠️");
                 return;
             }
 
             // Validate longitude range
             if (lon < -180 || lon > 180 || satLon < -180 || satLon > 180) {
-                showToast("Longitude must be between -180 and 180", "⚠️");
                 return;
             }
 
@@ -859,15 +853,43 @@
             }
         });
 
-        // Location input changes - update satellite visibility
+        // Location input changes - update satellite visibility and recalculate
         userLatEl.oninput = () => {
+            // Update satellite visibility in dropdown
             if (satDropdown.classList.contains('hidden') === false) {
                 renderDropdown(satSearch.value);
             }
+            // Auto-recalculate if we have all inputs
+            if (satLonEl.value) {
+                calculateAlignment();
+            }
         };
+        
         userLonEl.oninput = () => {
+            // Update satellite visibility in dropdown
             if (satDropdown.classList.contains('hidden') === false) {
                 renderDropdown(satSearch.value);
+            }
+            // Auto-recalculate if we have all inputs
+            if (satLonEl.value) {
+                calculateAlignment();
+            }
+        };
+        
+        // Satellite longitude input - auto-calculate on change
+        satLonEl.oninput = () => {
+            // Clear the satellite name if user is typing manually
+            if (document.activeElement === satLonEl) {
+                // Only clear if the value doesn't match a known satellite
+                const matchingSat = satellites.find(s => s.lon === parseFloat(satLonEl.value));
+                if (!matchingSat) {
+                    satSearch.value = '';
+                    updateClearButton();
+                }
+            }
+            // Auto-calculate if we have location
+            if (userLatEl.value && userLonEl.value) {
+                calculateAlignment();
             }
         };
 
@@ -944,15 +966,10 @@
             geoBtn.disabled = false;
         }
 
-        // Calculate button
-        calculateBtn.onclick = calculateAlignment;
-
         // =====================================================
         // INITIALIZATION
         // =====================================================
         window.onload = () => {
-            // Try to get user location on load (will prompt for permission)
-            // This is optional - users can also enter manually
             updateClearButton();
             renderDropdown('');
             
@@ -960,6 +977,11 @@
             if (!userLatEl.value && !userLonEl.value) {
                 userLatEl.value = '-33.8688';
                 userLonEl.value = '151.2093';
+            }
+            
+            // Auto-calculate if we have all values on load
+            if (userLatEl.value && userLonEl.value && satLonEl.value) {
+                calculateAlignment();
             }
         };
     </script>
